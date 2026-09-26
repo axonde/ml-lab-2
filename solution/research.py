@@ -82,7 +82,7 @@ def test_lighting(frame: pd.DataFrame) -> dict:
         "metric": "доля ДТП с погибшими, %",
         "effect": (p1 - p2) * 100, "ci": ((p1 - p2 - 1.96 * se) * 100, (p1 - p2 + 1.96 * se) * 100),
         "ci_method": "нормальное приближение (Вальд)",
-        "test": "χ² Пирсона для таблицы 2×2", "statistic": chi2, "p_value": p_value,
+        "test": "хи квадрат Пирсона для таблицы 2×2", "statistic": chi2, "p_value": p_value,
         "ratio": p1 / p2, "min_expected": expected.min(),
     }
 
