@@ -20,8 +20,6 @@ FILTERS = {
     "district": ("Район или город", "Все районы и города"),
     "category": ("Тип ДТП", "Все типы ДТП"),
 }
-PRECOMPUTED = (f"Рассчитано заранее по всем ДТП {YEARS[0]}-{YEARS[1]} выбранной выгрузки. "
-               "Фильтры боковой панели на этот раздел не действуют.")
 
 st.set_page_config(page_title="Атлас аварийности", page_icon="🗺️", layout="wide")
 
@@ -88,8 +86,8 @@ def show_overview(current: pd.DataFrame, start, end) -> None:
 
 def show_severity(current: pd.DataFrame) -> None:
     st.markdown(
-        "Во всех графиках раздела показатель один: **доля ДТП с погибшими** - ДТП, в которых погиб "
-        "хотя бы один человек, в % от всех ДТП группы. Отрезки - 95% доверительный интервал Уилсона."
+        "Во всех графиках раздела показатель один: **доля ДТП с погибшими** - ДТП (>=1 человек)"
+        ", в % от всех ДТП группы. Отрезки - 95% доверительный интервал Уилсона."
     )
     st.subheader("5. Благовещенск, другие города и районы")
     left, right = st.columns([3, 2])
@@ -101,10 +99,10 @@ def show_severity(current: pd.DataFrame) -> None:
         column_config={"district": "Район или город", "n": "ДТП", "fatal": "С погибшими",
                        "share": "Доля, %", "low": "ДИ от", "high": "ДИ до"},
     )
-    st.caption("«Другие города» - Белогорск, Свободный, Тында, Зея, Шимановск (в выгрузке у них "
+    st.caption("'Други города': Белогорск, Свободный, Тында, Зея, Шимановск (в выгрузке у них "
                "территория «Амурская область», в таблице - «Города обл. значения»), Райчихинск и "
                "Углегорск. «Районы» - муниципальные районы: сёла, посёлки и трассы между ними.")
-    st.subheader("6. Свой вопрос: в какое время суток ДТП смертельнее?")
+    st.subheader("6. В какое время суток ДТП смертельнее?")
     st.plotly_chart(charts.hour_chart(current), width="stretch")
     night = current["hour"].isin([21, 22, 23, 0, 1, 2, 3, 4, 5, 6])
     st.caption(f"В срезе с 21 до 6 ч доля ДТП с погибшими {fatal_pct(current[night])}, с 7 до 20 ч - "
@@ -114,22 +112,17 @@ def show_severity(current: pd.DataFrame) -> None:
     by_area = st.checkbox("Разбить по типу территории", key="lighting_by_area")
     st.plotly_chart(charts.lighting_chart(current, by_area), width="stretch")
     light = current["light_group"]
-    st.caption(f"В срезе: день - {fatal_pct(current[light == 'День'])}, темно и освещение есть - "
-               f"{fatal_pct(current[light == LIT])}, темно и освещения нет - {fatal_pct(current[light == UNLIT])}. "
-               "На всех данных освещённая темнота похожа на день, а без освещения доля в 2.7 раза выше. "
+    st.caption("На всех данных освещённая темнота похожа на день. "
                "Разбивка по территориям уточняет: освещённые улицы в основном в городах, где ДТП и днём "
                "легче, поэтому часть сходства с днём - эффект состава. В городах темнота и при фонарях "
-               "опаснее дня, но темнота без освещения - самое опасное условие в каждом типе территории. "
-               "«Освещение не включено» объединено с «отсутствует»; ДТП с неустановленным освещением "
-               "не показаны.")
-    st.subheader("8. Свой вопрос: зимой ДТП меньше, но тяжелее ли они?")
+               "опаснее дня, но темнота без освещения - самое опасное условие в каждом типе территории. ")
+    st.subheader("8. Зимой ДТП меньше, но тяжелее ли они?")
     left, right = st.columns(2)
     count_fig, share_fig = charts.season_charts(current)
     left.plotly_chart(count_fig, width="stretch")
     right.plotly_chart(share_fig, width="stretch")
     season = current["season"]
-    st.caption(f"Слева - сколько ДТП пришлось на каждый календарный месяц в выбранном периоде, справа - "
-               f"доля ДТП с погибшими в этом месяце. В срезе зимой (дек-фев) доля ДТП с погибшими "
+    st.caption(f"В срезе зимой (дек-фев) доля ДТП с погибшими "
                f"{fatal_pct(current[season == 'Зима'])}, летом (июн-авг) - {fatal_pct(current[season == 'Лето'])}. "
                "Число ДТП летом выше, а доля с погибшими по месяцам меняется мало. Проверка - гипотеза H3.")
 
@@ -155,7 +148,6 @@ def show_map(current: pd.DataFrame) -> None:
     if view == "Точки":
         if len(points) > 5000:
             points = points.sample(5000, random_state=SEED)
-            st.warning("Для быстрого просмотра показана случайная подвыборка 5 000 точек.")
         st.plotly_chart(charts.points_map(points, backdrop), width="stretch")
     else:
         left, right = st.columns(2)
@@ -179,8 +171,6 @@ def show_map(current: pd.DataFrame) -> None:
 
 
 def show_projections(path: str, stat) -> None:
-    st.info(f"Объекты - случайная подвыборка {PROJECTION_SIZE} ДТП за {YEARS[0]}-{YEARS[1]} "
-            f"(seed {SEED}). Фильтры на этот раздел не действуют.")
     data, loadings, ratio = cached_projections(path, stat.st_mtime_ns, stat.st_size)
     color = st.radio("Цвет точек", ["area_type", "kind", "severity"], horizontal=True,
                      format_func={"area_type": "Тип территории", "kind": "Тип ДТП",
@@ -188,9 +178,7 @@ def show_projections(path: str, stat) -> None:
     st.markdown(
         "Признаки - условия ДТП: тип ДТП (8 групп), освещение (4), тип территории (3), место "
         "(перегон, перекрёсток, пешеходный переход), осадки, зима, выходной, есть ли мотоцикл или "
-        "грузовик, число ТС и участников. Категории закодированы нулями и единицами (one-hot), затем "
-        "все признаки стандартизованы. Исход (погибшие и раненые) в признаки не входит, им можно "
-        "только раскрасить точки."
+        "грузовик, число ТС и участников. "
     )
     st.subheader("11. PCA")
     left, right = st.columns([3, 2])
@@ -206,7 +194,7 @@ def show_projections(path: str, stat) -> None:
         "пешеходные переходы, с другой - районы, перегоны, темнота без освещения, съезды с дороги и "
         "опрокидывания. ДТП с погибшими чаще лежат на «трассовой» стороне."
     )
-    st.subheader("12. t-SNE: два запуска на тех же объектах")
+    st.subheader("12. t-SNE")
     columns = st.columns(len(PERPLEXITIES))
     for column, perplexity in zip(columns, PERPLEXITIES):
         column.plotly_chart(charts.projection_chart(
@@ -234,7 +222,6 @@ def show_projections(path: str, stat) -> None:
 
 
 def show_tests(path: str, stat) -> None:
-    st.info(PRECOMPUTED)
     results = cached_tests(path, stat.st_mtime_ns, stat.st_size)
     st.table(tests_table(results).set_index("Гипотеза").T)
     st.markdown(
@@ -255,8 +242,6 @@ def show_tests(path: str, stat) -> None:
 
 
 def show_before_after() -> None:
-    st.info(f"Картинки построены по всем ДТП {YEARS[0]}-{YEARS[1]} командой "
-            "`.venv/bin/python solution/research.py`.")
     left, right = st.columns(2)
     left.markdown("**До**")
     left.image(str(ASSETS / "lighting_before.png"))
